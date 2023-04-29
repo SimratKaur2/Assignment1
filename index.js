@@ -37,7 +37,7 @@ var mongoStore = MongoStore.create({
   crypto: {
     secret: mongodb_session_secret,
   },
-  collectionName: "sessions"
+  collectionName: "sessions",
 });
 
 app.use(
@@ -49,21 +49,34 @@ app.use(
   })
 );
 
-app.get("/", (req, res) => {
-    const user = req.session.authenticated;
+/*functions */
 
-    if(!user) {
-        //user is not logged in
-        var html = `
+function requireLogin(req, res, next) {
+  if(req.session.authenticated) {
+    //user is authenticated, so continue to the next middleware
+    next();
+  } else {
+    //user is redirected to the login page
+    console.log('you are not logged in')
+    res.redirect("/login");
+  }
+}
+
+app.get("/", (req, res) => {
+  const user = req.session.authenticated;
+
+  if (!user) {
+    //user is not logged in
+    var html = `
         <ul>
           <li><a href="/signUp">Sign Up</a></li>
           <li><a href="/login">Login</a></li>
         </ul>
         `;
-      res.send(html);
-    } else {
-        //user is logged in 
-      const html = `
+    res.send(html);
+  } else {
+    //user is logged in
+    const html = `
       <style>
       ul {
         list-style: none; /* Remove bullet points */
@@ -90,7 +103,7 @@ app.get("/", (req, res) => {
     `;
     res.send(html);
   }
-  });
+});
 
 app.get("/nosql-injection", async (req, res) => {
   var username = req.query.user;
@@ -130,39 +143,8 @@ app.get("/nosql-injection", async (req, res) => {
   res.send(`<h1>Hello ${username}</h1>`);
 });
 
-app.get("/about", (req, res) => {
-  var color = req.query.color;
-
-  res.send("<h1 style='color:" + color + ";'>Patrick Guichon</h1>");
-});
-
-app.get("/contact", (req, res) => {
-  var missingEmail = req.query.missing;
-  var html = `
-        email address:
-        <form action='/submitEmail' method='post'>
-            <input name='email' type='text' placeholder='email'>
-            <button>Submit</button>
-        </form>
-    `;
-  if (missingEmail) {
-    html += "<br> email is required";
-  }
-  res.send(html);
-});
-
-app.post("/submitEmail", (req, res) => {
-  var email = req.body.email;
-  if (!email) {
-    res.redirect("/contact?missing=1");
-  } else {
-    res.send("Thanks for subscribing with your email: " + email);
-  }
-});
-
-
 app.get("/signUp", (req, res) => {
-    var html = `
+  var html = `
     create user
     <form action='/submitUser' method='post'>
     <input name='username' type='text' placeholder='name'><br>
@@ -171,89 +153,86 @@ app.get("/signUp", (req, res) => {
     <button>Submit</button>
     </form>
     `;
-    res.send(html);
+  res.send(html);
 });
 
-
 app.get("/error", (req, res) => {
-    const missingName = req.query.missingName;
-    const missingEmail = req.query.missingEmail;
-    const missingPassword = req.query.missingPassword;
-    let errorMessage = "";
-  
-    if (missingName) {
-      errorMessage += "Name is required.<br>";
-    }
-    if (missingEmail) {
-      errorMessage += "Email is required.<br>";
-    }
-    if (missingPassword) {
-      errorMessage += "Password is required.<br>";
-    }
-  
-    const html = `
+  const missingName = req.query.missingName;
+  const missingEmail = req.query.missingEmail;
+  const missingPassword = req.query.missingPassword;
+  let errorMessage = "";
+
+  if (missingName) {
+    errorMessage += "Name is required.<br>";
+  }
+  if (missingEmail) {
+    errorMessage += "Email is required.<br>";
+  }
+  if (missingPassword) {
+    errorMessage += "Password is required.<br>";
+  }
+
+  const html = `
       <h1>Error</h1>
       <p>${errorMessage}</p>
       <a href="/signUp">Try Again</a>
     `;
-    res.send(html);
-  });
+  res.send(html);
+});
 
 app.post("/submitUser", async (req, res) => {
-    var username = req.body.username;
-    var email = req.body.email;
-    var password = req.body.password;
+  var username = req.body.username;
+  var email = req.body.email;
+  var password = req.body.password;
 
-     
   // Check if any fields are empty and redirect to error page if necessary
   if (!username || !email || !password) {
-    let redirectUrl = '/error?';
+    let redirectUrl = "/error?";
     if (!username) {
-      redirectUrl += 'missingName=1&';
+      redirectUrl += "missingName=1&";
     }
     if (!email) {
-      redirectUrl += 'missingEmail=1&';
+      redirectUrl += "missingEmail=1&";
     }
     if (!password) {
-      redirectUrl += 'missingPassword=1&';
+      redirectUrl += "missingPassword=1&";
     }
     res.redirect(redirectUrl);
     return;
-  } 
+  }
 
-    const schema = Joi.object({
-      username: Joi.string().alphanum().max(20).required(),
-      email: Joi.string().email().required(),
-      password: Joi.string().max(20).required(),
-    });
-  
-    const validationResult = schema.validate({ username,email,password });
-    if (validationResult.error != null) {
-      console.log(validationResult.error);
-      res.redirect("/signUp");
-      return;
-    }
-  
-    var hashedPassword = await bcrypt.hash(password, saltRounds);
-  
-    await userCollection.insertOne({
-      username: username,
-      email: email,
-      password: hashedPassword,
-    });
-    console.log("Inserted user");
-  
-    //create session for the new user
-    req.session.authenticated = true;
-    req.session.username = username;
-    req.session.email = email;
-    req.session.cookie.maxAge = expireTime;
-
-    res.redirect('/members');
-
+  const schema = Joi.object({
+    username: Joi.string().alphanum().max(20).required(),
+    email: Joi.string().email().required(),
+    password: Joi.string().max(20).required(),
   });
 
-const path = require('path');
+  const validationResult = schema.validate({ username, email, password });
+  if (validationResult.error != null) {
+    console.log(validationResult.error);
+    res.redirect("/signUp");
+    return;
+  }
+
+  var hashedPassword = await bcrypt.hash(password, saltRounds);
+
+  await userCollection.insertOne({
+    username: username,
+    email: email,
+    password: hashedPassword,
+  });
+  console.log("Inserted user");
+
+  //create session for the new user
+  req.session.authenticated = true;
+  req.session.username = username;
+  req.session.email = email;
+  req.session.cookie.maxAge = expireTime;
+
+  res.redirect("/members");
+});
+
+const path = require("path");
 
 function randomImage() {
   const images = ["gif1.gif", "gif2.gif", "gif3.gif"];
@@ -262,25 +241,23 @@ function randomImage() {
   return randomImage;
 }
 
-app.get("/members", (req, res) => {
+app.get("/members",requireLogin, (req, res) => {
   user = req.session.username;
   const image = randomImage();
-      var html = `
+  var html = `
       <h1>Hello ${user},</h1>
       <img src='/${image}' style='width:250px;'><br>
       <form action='/logout' method='post'><br>
       <button>Sign Out</button>
       </form>
       `;
-    res.send(html);
+  res.send(html);
 });
 
 app.use(express.static(__dirname + "/public"));
 
-
 app.get("/login", (req, res) => {
-  const missingEmail = req.query.missingEmail;
-  const missingPassword = req.query.missingPassword;
+  const emptyFields = req.query.emptyFields;
 
   var html = `
     log in
@@ -290,65 +267,70 @@ app.get("/login", (req, res) => {
     <button>Submit</button>
     </form>
     `;
-    if (missingEmail || missingPassword) {
-        html += "<span style='color:red;'>Email and password is required.</span><br>";
-    }
-    res.send(html);
+  if (emptyFields) {
+    html +=
+      "<span style='color:red;'>Email and password is required.</span><br>";
+  }
+  res.send(html);
 });
 
 app.post("/loggingin", async (req, res) => {
-    var username = req.body.username;
-    var email = req.body.email;
-    var password = req.body.password;
-  
-    const schema = Joi.string().required();
-    const validationResult = schema.validate(email);
-    if (validationResult.error != null) {
-      console.log(validationResult.error);
-      res.redirect("/login");
-      return;
-    }
-  
-    const result = await userCollection
-      .find({ email: email })
-      .project({email: 1, password: 1, _id: 1 })
-      .toArray();
-  
-    console.log(result);
-    if (result.length != 1) {
-      console.log("user email not found");
-      res.redirect("/login");
-      return;
-    }
-    if (await bcrypt.compare(password, result[0].password)) {
-      console.log("correct password");
-      req.session.authenticated = true;
-      req.session.username = username;
-      req.session.email = email;
-      req.session.cookie.maxAge = expireTime;
-  
-      res.redirect("/members");
-      return;
-    } else {
-      console.log("incorrect password");
-      res.redirect("/loginSubmit");
-      return;
-    }
+  var username = req.body.username;
+  var email = req.body.email;
+  var password = req.body.password;
+
+  if(!email || !password) {
+    res.redirect("/login?emptyFields=1");
+    return;
+  }
+
+  const schema = Joi.string().required();
+  const validationResult = schema.validate(email);
+  if (validationResult.error != null) {
+    console.log(validationResult.error);
+    res.redirect("/login");
+    return;
+  }
+
+  const result = await userCollection
+    .find({ email: email })
+    .project({ username: 1, email: 1, password: 1, _id: 1 })
+    .toArray();
+
+  console.log(result);
+  if (result.length != 1) {
+    console.log("user email not found");
+    res.redirect("/login");
+    return;
+  }
+  if (await bcrypt.compare(password, result[0].password)) {
+    console.log("correct password");
+    req.session.authenticated = true;
+    req.session.username = result[0].username;
+    req.session.email = email;
+    req.session.cookie.maxAge = expireTime;
+
+    res.redirect("/members");
+    return;
+  } else {
+    console.log("incorrect password");
+    res.redirect("/loginSubmit");
+    return;
+  }
 });
 
 app.get("/loginSubmit", (req, res) => {
-      var html = `
+  var html = `
       Invalid email/password combination.<br>
       <a href="/login">Try Again</a>
       `;
-      res.send(html);
-  });
+  res.send(html);
+});
 
-  app.post("/logout", (req, res) => {
-    req.session.destroy();
-    res.redirect('/login');
-  });
-
+app.post("/logout", (req, res) => {
+  req.session.destroy();
+  res.redirect("/");
+});
 
 app.get("*", (req, res) => {
   res.status(404);
