@@ -235,7 +235,7 @@ app.post("/submitUser", async (req, res) => {
 const path = require("path");
 
 function randomImage() {
-  const images = ["gif1.gif", "gif2.gif", "gif3.gif"];
+  const images = ["gif1.gif", "gif2.gif", "gif3.gif", "gif4.gif","gif5.gif","gif6.gif","gif7.gif","gif8.gif","gif9.gif","gif10.gif"];
   const imageIndex = Math.floor(Math.random() * images.length);
   const randomImage = images[imageIndex];
   return randomImage;
