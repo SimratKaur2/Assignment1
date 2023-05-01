@@ -38,6 +38,7 @@ var mongoStore = MongoStore.create({
     secret: mongodb_session_secret,
   },
   collectionName: "sessions",
+  ttl: expireTime / 1000,
 });
 
 app.use(
