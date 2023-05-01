@@ -1,4 +1,4 @@
-require("./utils.js");
+require("../utils.js");
 
 require("dotenv").config();
 
@@ -26,7 +26,7 @@ const mongodb_session_secret = process.env.MONGODB_SESSION_SECRET;
 const node_session_secret = process.env.NODE_SESSION_SECRET;
 /* END secret section */
 
-var { database } = require("./databaseConnection.js");
+var { database } = include("databaseConnection.js");
 
 const userCollection = database.db(mongodb_database).collection("users");
 
@@ -255,7 +255,7 @@ app.get("/members",requireLogin, (req, res) => {
   res.send(html);
 });
 
-app.use(express.static(__dirname + "/public"));
+app.use(express.static(__dirname + "/../public"));
 
 app.get("/login", (req, res) => {
   const emptyFields = req.query.emptyFields;
