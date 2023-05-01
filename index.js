@@ -255,7 +255,7 @@ app.get("/members",requireLogin, (req, res) => {
   res.send(html);
 });
 
-app.use(express.static(__dirname + "/../public"));
+app.use(express.static(__dirname + "/public"));
 
 app.get("/login", (req, res) => {
   const emptyFields = req.query.emptyFields;
